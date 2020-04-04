@@ -8,11 +8,12 @@ import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior, Scheduler}
 import akka.util.Timeout
+import com.heavens_above.UserRegistry.Command
 
-trait AskUserRegistry {
+class AskUserRegistry(registry: ActorRef[Command]) {
   import UserRegistry._
 
-  def getUser(id: String)(registry: ActorRef[Command])(
+  def getUser(id: String)(
     implicit timeout: Timeout,
     scheduler: Scheduler,
     executor: ExecutionContext
@@ -40,7 +41,9 @@ object UserRegistry {
   final case class GetUserResponse(maybeUser: Option[User])
   final case class ActionPerformed(description: String)
 
-  def apply(): Behavior[Command] = registry(Set.empty)
+  def apply(): Behavior[Command] =
+    //registry(Set.empty)
+    registry(Set(User("trashe-racer"), User("emys")))
 
   private def registry(users: Set[User]): Behavior[Command] =
     Behaviors.receiveMessage {

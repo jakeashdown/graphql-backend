@@ -3,13 +3,30 @@ package com.heavens_above
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
-
 import scala.concurrent.Future
+import scala.util.{Failure, Success}
+
 import com.heavens_above.UserRegistry._
 import akka.actor.typed.ActorRef
 import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.AskPattern._
 import akka.util.Timeout
+import sangria.execution.{ErrorWithResolver, Executor, QueryAnalysisError}
+import sangria.parser.QueryParser
+import spray.json.{JsObject, JsString, JsValue}
+import sangria.ast.Document
+import sangria.execution.deferred.DeferredResolver
+import sangria.execution.{ErrorWithResolver, Executor, QueryAnalysisError}
+import sangria.parser.{QueryParser, SyntaxError}
+import sangria.parser.DeliveryScheme.Try
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model.StatusCodes._
+import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.model.MediaTypes._
+import akka.http.scaladsl.server._
+import akka.stream.{ActorMaterializer, Materializer}
+import scala.util.control.NonFatal
+import scala.util.{Failure, Success}
 
 //#import-json-formats
 //#user-routes-class
@@ -32,48 +49,57 @@ class UserRoutes(userRegistry: ActorRef[UserRegistry.Command])(implicit val syst
   def deleteUser(name: String): Future[ActionPerformed] =
     userRegistry.ask(DeleteUser(name, _))
 
+  import sangria.marshalling.sprayJson._
+
+  implicit val materializer = Materializer(system)
+
+  implicit val ec = system.executionContext
+
+  def executeGraphQLQuery(query: Document, op: Option[String], vars: JsObject) =
+    Executor.execute(UserSchema.schema, query, (), variables = vars, operationName = op)
+      .map(OK → _)
+      .recover {
+        case error: QueryAnalysisError ⇒ BadRequest → error.resolveError
+        case error: ErrorWithResolver ⇒ InternalServerError → error.resolveError
+      }
+
+
+  def graphQLEndpoint(requestJson: JsValue) = {
+    val JsObject(fields) = requestJson
+
+    val JsString(query) = fields("query")
+
+    val operation = fields.get("operationName") collect {
+      case JsString(op) ⇒ op
+    }
+
+    val vars = fields.get("variables") match {
+      case Some(obj: JsObject) ⇒ obj
+      case _ ⇒ JsObject.empty
+    }
+
+    QueryParser.parse(query) match {
+      // query parsed successfully, time to execute it!
+      case Success(queryAst) ⇒
+        complete(executeGraphQLQuery(queryAst, operation, vars))
+
+      // can't parse GraphQL query, return error
+      case Failure(error) ⇒
+        complete(BadRequest, JsObject("error" → JsString(error.getMessage)))
+    }
+  }
+
+
   //#all-routes
   //#users-get-post
   //#users-get-delete
   val userRoutes: Route =
-    pathPrefix("users") {
-      concat(
-        //#users-get-delete
-        pathEnd {
-          concat(
-            get {
-              complete(getUsers())
-            },
-            post {
-              entity(as[User]) { user =>
-                onSuccess(createUser(user)) { performed =>
-                  complete((StatusCodes.Created, performed))
-                }
-              }
-            })
-        },
-        //#users-get-delete
-        //#users-get-post
-        path(Segment) { name =>
-          concat(
-            get {
-              //#retrieve-user-info
-              rejectEmptyResponse {
-                onSuccess(getUser(name)) { response =>
-                  complete(response.maybeUser)
-                }
-              }
-              //#retrieve-user-info
-            },
-            delete {
-              //#users-delete-logic
-              onSuccess(deleteUser(name)) { performed =>
-                complete((StatusCodes.OK, performed))
-              }
-              //#users-delete-logic
-            })
-        })
-      //#users-get-delete
+  (post & path("graphql")) {
+    entity(as[JsValue]) { requestJson ⇒
+      graphQLEndpoint(requestJson)
     }
-  //#all-routes
+  } ~
+    get {
+      getFromResource("playground.html")
+    }
 }

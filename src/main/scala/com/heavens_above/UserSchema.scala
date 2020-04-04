@@ -31,7 +31,7 @@ object UserSchema {
   val QueryType =
     ObjectType(
       name = "Query",
-      fields = fields[AskUserRegistry, Unit](
+      fields = fields[Unit, Unit](
         Field(
           "echo",
           StringType,
