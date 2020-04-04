@@ -1,13 +1,28 @@
 package com.heavens_above
 
 //#user-registry-actor
-import akka.actor.typed.ActorRef
-import akka.actor.typed.Behavior
-import akka.actor.typed.scaladsl.Behaviors
 import scala.collection.immutable
+import scala.concurrent.{ExecutionContext, Future}
+
+import akka.actor.typed.scaladsl.AskPattern._
+import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.{ActorRef, Behavior, Scheduler}
+import akka.util.Timeout
+
+trait AskUserRegistry {
+  import UserRegistry._
+
+  def getUser(id: String)(registry: ActorRef[Command])(
+    implicit timeout: Timeout,
+    scheduler: Scheduler,
+    executor: ExecutionContext
+  ): Future[Option[User]] =
+    registry.ask[GetUserResponse](GetUser(id, _)).map(_.maybeUser)
+
+}
 
 //#user-case-classes
-final case class User(name: String, age: Int, countryOfResidence: String)
+final case class User(name: String)
 final case class Users(users: immutable.Seq[User])
 //#user-case-classes
 
@@ -15,9 +30,12 @@ object UserRegistry {
   // actor protocol
   sealed trait Command
   final case class GetUsers(replyTo: ActorRef[Users]) extends Command
-  final case class CreateUser(user: User, replyTo: ActorRef[ActionPerformed]) extends Command
-  final case class GetUser(name: String, replyTo: ActorRef[GetUserResponse]) extends Command
-  final case class DeleteUser(name: String, replyTo: ActorRef[ActionPerformed]) extends Command
+  final case class CreateUser(user: User, replyTo: ActorRef[ActionPerformed])
+      extends Command
+  final case class GetUser(name: String, replyTo: ActorRef[GetUserResponse])
+      extends Command
+  final case class DeleteUser(name: String, replyTo: ActorRef[ActionPerformed])
+      extends Command
 
   final case class GetUserResponse(maybeUser: Option[User])
   final case class ActionPerformed(description: String)
