@@ -1,6 +1,8 @@
 lazy val akkaHttpVersion = "10.1.11"
 lazy val akkaVersion    = "2.6.4"
 
+Compile/mainClass := Some("com.heavens_above.QuickstartApp")
+
 graphqlSchemaSnippet := "com.heavens_above.UserSchema.schema"
 
 target in graphqlSchemaGen := target.value / "graphql-build-schema"
