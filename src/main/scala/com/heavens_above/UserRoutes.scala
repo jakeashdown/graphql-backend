@@ -1,14 +1,10 @@
 package com.heavens_above
 
-import scala.concurrent.{ ExecutionContextExecutor, Future }
-import scala.util.{ Failure, Success }
+import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
 
-import akka.actor.typed.scaladsl.AskPattern._
-import akka.actor.typed.{ ActorRef, ActorSystem }
-import akka.http.scaladsl.model.StatusCode
-import akka.http.scaladsl.model.StatusCodes._
-import akka.http.scaladsl.server.Directives._
-import akka.http.scaladsl.server.{ Route, StandardRoute }
+import akka.actor.typed.{ ActorRef, ActorSystem, Scheduler }
+import akka.http.scaladsl.marshalling.ToResponseMarshallable
+import akka.http.scaladsl.server.Route
 import akka.stream.Materializer
 import akka.util.Timeout
 import sangria.ast.Document
@@ -17,70 +13,84 @@ import sangria.parser.DeliveryScheme.Try
 import sangria.parser.QueryParser
 import spray.json.{ JsObject, JsString, JsValue }
 
+object UserRoutes {
+
+  import UserRegistry._
+  import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+  import akka.http.scaladsl.model.StatusCodes._
+  import sangria.marshalling.sprayJson._
+
+  class RegistryAsker(registry: ActorRef[Command])(
+      implicit timeout: Timeout,
+      scheduler: Scheduler,
+      executionContext: ExecutionContext)
+      extends Ask {
+
+    import akka.actor.typed.scaladsl.AskPattern._
+
+    override def getUser(id: String): Future[Option[User]] =
+      registry.ask[GetUserResponse](GetUser(id, _)).map(_.maybeUser)
+  }
+
+  def executeQuery(query: Document, resolver: Ask, maybeOperation: Option[String], variables: JsObject)(
+      implicit executionContext: ExecutionContext): ToResponseMarshallable =
+    Executor
+      .execute(
+        schema = UserSchema.schema,
+        queryAst = query,
+        userContext = resolver,
+        variables = variables,
+        operationName = maybeOperation)
+      .map(OK -> _)
+      .recover {
+        case error: QueryAnalysisError => BadRequest -> error.resolveError
+        case error: ErrorWithResolver  => InternalServerError -> error.resolveError
+      }
+}
+
 class UserRoutes(userRegistry: ActorRef[UserRegistry.Command])(implicit val system: ActorSystem[_])
     extends CorsHandler {
 
+  import UserRoutes._
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-
-  // If ask takes more time than this to complete the request is failed
-  private implicit val timeout: Timeout =
-    Timeout.create(system.settings.config.getDuration("my-app.routes.ask-timeout"))
-
-  import sangria.marshalling.sprayJson._
+  import akka.http.scaladsl.model.StatusCodes._
+  import akka.http.scaladsl.server.Directives._
 
   implicit val materializer: Materializer = Materializer(system)
 
-  implicit val ec: ExecutionContextExecutor = system.executionContext
+  // If asking the registry takes more time than this to complete, fails the request
+  implicit val timeout: Timeout =
+    Timeout.create(system.settings.config.getDuration("my-app.routes.ask-timeout"))
 
-  class Resolver(registry: ActorRef[UserRegistry.Command]) extends UserRegistry.Ask {
-    override def getUser(id: String): Future[Option[User]] =
-      registry.ask[UserRegistry.GetUserResponse](UserRegistry.GetUser(id, _)).map(_.maybeUser)
-  }
+  implicit val executionContext: ExecutionContextExecutor = system.executionContext
+  implicit val scheduler: Scheduler = system.scheduler
 
-  val resolver = new Resolver(userRegistry)
+  val registryAsker = new RegistryAsker(userRegistry)
 
-  def executeGraphQLQuery(
-      query: Document,
-      op: Option[String],
-      vars: JsObject): Future[(StatusCode with Serializable, JsValue)] =
-    Executor.execute(UserSchema.schema, query, resolver, variables = vars, operationName = op).map(OK -> _).recover {
-      case error: QueryAnalysisError => BadRequest -> error.resolveError
-      case error: ErrorWithResolver  => InternalServerError -> error.resolveError
-    }
-
-  def graphQLEndpoint(requestJson: JsValue): StandardRoute = {
-    val JsObject(fields) = requestJson
-
-    val JsString(query) = fields("query")
-
-    val operation = fields.get("operationName").collect {
-      case JsString(op) => op
-    }
-
-    val vars = fields.get("variables") match {
-      case Some(obj: JsObject) => obj
-      case _                   => JsObject.empty
-    }
-
-    QueryParser.parse(query) match {
-      // query parsed successfully, time to execute it!
-      case Success(queryAst) =>
-        complete(executeGraphQLQuery(queryAst, operation, vars))
-
-      // can't parse GraphQL query, return error
-      case Failure(error) =>
-        complete(BadRequest, JsObject("error" -> JsString(error.getMessage)))
-    }
-  }
-
-  val userRoutes: Route =
-    corsHandler {
+  val route: Route =
+    handleCorsRequests {
+      getFromResource("playground.html") ~
       (post & path("graphql")) {
-        entity(as[JsValue]) { requestJson =>
-          graphQLEndpoint(requestJson)
-        } ~
-        get {
-          getFromResource("playground.html")
+        entity(as[JsValue]) {
+          case JsObject(fields) =>
+            val JsString(query) = fields("query")
+
+            val maybeOperation = fields.get("operationName").collect {
+              case JsString(operation) => operation
+            }
+
+            val variables = fields.get("variables") match {
+              case Some(jsObject: JsObject) => jsObject
+              case _                        => JsObject.empty
+            }
+
+            QueryParser.parse(query) match {
+              case util.Success(queryAst) =>
+                complete(executeQuery(queryAst, registryAsker, maybeOperation, variables))
+
+              case util.Failure(error) =>
+                complete(BadRequest, JsObject("error" -> JsString(error.getMessage)))
+            }
         }
       }
     }

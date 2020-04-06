@@ -1,20 +1,21 @@
 package com.heavens_above
 
+import scala.util.{ Failure, Success }
+
 import akka.actor.typed.ActorSystem
-import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
 
-import scala.util.Failure
-import scala.util.Success
-
-//#main-class
 object QuickstartApp {
-  //#start-http-server
+
+  import akka.actor.typed.scaladsl.adapter._
+
   private def startHttpServer(routes: Route, system: ActorSystem[_]): Unit = {
+
     // Akka HTTP still needs a classic ActorSystem to start
     implicit val classicSystem: akka.actor.ActorSystem = system.toClassic
+
     import system.executionContext
 
     val futureBinding = Http().bindAndHandle(routes, "localhost", 8080)
@@ -27,20 +28,18 @@ object QuickstartApp {
         system.terminate()
     }
   }
-  //#start-http-server
+
   def main(args: Array[String]): Unit = {
-    //#server-bootstrapping
+
     val rootBehavior = Behaviors.setup[Nothing] { context =>
       val userRegistryActor = context.spawn(UserRegistry(), "UserRegistryActor")
       context.watch(userRegistryActor)
 
       val routes = new UserRoutes(userRegistryActor)(context.system)
-      startHttpServer(routes.userRoutes, context.system)
+      startHttpServer(routes.route, context.system)
 
       Behaviors.empty
     }
-    val system = ActorSystem[Nothing](rootBehavior, "HelloAkkaHttpServer")
-    //#server-bootstrapping
+    ActorSystem[Nothing](rootBehavior, "BackendAkkaHttpServer")
   }
 }
-//#main-class

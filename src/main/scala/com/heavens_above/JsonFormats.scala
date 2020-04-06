@@ -1,17 +1,19 @@
 package com.heavens_above
 
 import com.heavens_above.UserRegistry.ActionPerformed
-
-//#json-formats
-import spray.json.DefaultJsonProtocol
+import spray.json.{ DefaultJsonProtocol, RootJsonFormat }
 
 object JsonFormats {
-  // import the default encoders for primitive types (Int, String, Lists etc)
+
+  // Imports the default encoders for primitive types (Int, String, List, etc)
   import DefaultJsonProtocol._
 
-  implicit val userJsonFormat = jsonFormat1(User)
-  implicit val usersJsonFormat = jsonFormat1(Users)
+  implicit val userJsonFormat: RootJsonFormat[User] =
+    jsonFormat1(User)
 
-  implicit val actionPerformedJsonFormat = jsonFormat1(ActionPerformed)
+  implicit val usersJsonFormat: RootJsonFormat[Users] =
+    jsonFormat1(Users)
+
+  implicit val actionPerformedJsonFormat: RootJsonFormat[ActionPerformed] =
+    jsonFormat1(ActionPerformed)
 }
-//#json-formats
