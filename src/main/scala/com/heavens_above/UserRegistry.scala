@@ -1,64 +1,48 @@
 package com.heavens_above
 
-//#user-registry-actor
 import scala.collection.immutable
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
-import akka.actor.typed.scaladsl.AskPattern._
 import akka.actor.typed.scaladsl.Behaviors
-import akka.actor.typed.{ActorRef, Behavior, Scheduler}
-import akka.util.Timeout
-import com.heavens_above.UserRegistry.Command
+import akka.actor.typed.{ ActorRef, Behavior }
 
-class AskUserRegistry(registry: ActorRef[Command]) {
-  import UserRegistry._
-
-  def getUser(id: String)(
-    implicit timeout: Timeout,
-    scheduler: Scheduler,
-    executor: ExecutionContext
-  ): Future[Option[User]] =
-    registry.ask[GetUserResponse](GetUser(id, _)).map(_.maybeUser)
-
-}
-
-//#user-case-classes
-final case class User(name: String)
+final case class User(id: String)
 final case class Users(users: immutable.Seq[User])
-//#user-case-classes
 
 object UserRegistry {
-  // actor protocol
+
+  trait Ask {
+    def getUser(id: String): Future[Option[User]]
+  }
+
   sealed trait Command
   final case class GetUsers(replyTo: ActorRef[Users]) extends Command
-  final case class CreateUser(user: User, replyTo: ActorRef[ActionPerformed])
-      extends Command
-  final case class GetUser(name: String, replyTo: ActorRef[GetUserResponse])
-      extends Command
-  final case class DeleteUser(name: String, replyTo: ActorRef[ActionPerformed])
-      extends Command
+  final case class CreateUser(user: User, replyTo: ActorRef[ActionPerformed]) extends Command
+  final case class GetUser(id: String, replyTo: ActorRef[GetUserResponse]) extends Command
+  final case class DeleteUser(id: String, replyTo: ActorRef[ActionPerformed]) extends Command
 
   final case class GetUserResponse(maybeUser: Option[User])
   final case class ActionPerformed(description: String)
 
   def apply(): Behavior[Command] =
-    //registry(Set.empty)
-    registry(Set(User("trashe-racer"), User("emys")))
+    registry(Set(User("trashe-racer"), User("emma-s")))
 
   private def registry(users: Set[User]): Behavior[Command] =
     Behaviors.receiveMessage {
       case GetUsers(replyTo) =>
         replyTo ! Users(users.toSeq)
         Behaviors.same
+
       case CreateUser(user, replyTo) =>
-        replyTo ! ActionPerformed(s"User ${user.name} created.")
+        replyTo ! ActionPerformed(s"User ${user.id} created.")
         registry(users + user)
-      case GetUser(name, replyTo) =>
-        replyTo ! GetUserResponse(users.find(_.name == name))
+
+      case GetUser(id, replyTo) =>
+        replyTo ! GetUserResponse(users.find(_.id == id))
         Behaviors.same
-      case DeleteUser(name, replyTo) =>
-        replyTo ! ActionPerformed(s"User $name deleted.")
-        registry(users.filterNot(_.name == name))
+
+      case DeleteUser(id, replyTo) =>
+        replyTo ! ActionPerformed(s"User $id deleted.")
+        registry(users.filterNot(_.id == id))
     }
 }
-//#user-registry-actor
