@@ -6,7 +6,7 @@ import scala.concurrent.Future
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ ActorRef, Behavior }
 
-final case class User(id: String)
+final case class User(id: String, name: String)
 final case class Users(users: immutable.Seq[User])
 
 object UserRegistry {
@@ -25,7 +25,7 @@ object UserRegistry {
   final case class ActionPerformed(description: String)
 
   def apply(): Behavior[Command] =
-    registry(Set(User("trashe-racer"), User("emma-s")))
+    registry(Set(User("trashe-racer", "jake"), User("emy", "emma")))
 
   private def registry(users: Set[User]): Behavior[Command] =
     Behaviors.receiveMessage {

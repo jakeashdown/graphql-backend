@@ -9,7 +9,7 @@ object JsonFormats {
   import DefaultJsonProtocol._
 
   implicit val userJsonFormat: RootJsonFormat[User] =
-    jsonFormat1(User)
+    jsonFormat2(User)
 
   implicit val usersJsonFormat: RootJsonFormat[Users] =
     jsonFormat1(Users)
