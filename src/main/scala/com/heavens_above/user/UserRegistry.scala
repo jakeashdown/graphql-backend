@@ -1,17 +1,20 @@
 package com.heavens_above.user
 
+import java.time.LocalDateTime
+
 import scala.collection.immutable
 import scala.concurrent.Future
 
 import akka.actor.typed.scaladsl.Behaviors
-import akka.actor.typed.{ ActorRef, Behavior }
+import akka.actor.typed.{ActorRef, Behavior}
 import com.heavens_above.Identifiable
 
 object User {
   def apply(id: String, name: String): User = User(id, Some(name))
+  def apply(id: String, name: String, createdAt: LocalDateTime): User = User(id, Some(name), createdAt)
 }
 
-final case class User(id: String, name: Option[String] = None) extends Identifiable
+final case class User(id: String, name: Option[String] = None, createdAt: LocalDateTime = LocalDateTime.now()) extends Identifiable
 final case class Users(users: immutable.Seq[User])
 
 trait AsksUserRegistry {
@@ -23,8 +26,8 @@ object UserRegistry {
 
   // todo: remove
   val defaults: Set[User] = Set(
-    User(id = "trashe-racer", name = "jake"),
-    User(id = "emma.s")
+    User(id = "trashe-racer", name = "jake", createdAt = LocalDateTime.parse("2020-01-01T12:00:00")),
+    User(id = "emma.s", createdAt = LocalDateTime.parse("2020-01-02T13:30:00"))
   )
 
   sealed trait Command
