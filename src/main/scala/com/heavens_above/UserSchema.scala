@@ -22,11 +22,6 @@ object UserSchema {
       name = "Query",
       fields = fields[UserRegistry.Ask, Unit](
         Field(
-          name = "echo",
-          fieldType = StringType,
-          arguments = ToEcho :: Nil,
-          resolve = c => s"server echoes '${c.arg(ToEcho)}'"),
-        Field(
           name = "user",
           fieldType = OptionType(UserType),
           description = Some("Returns a user with specific `id`."),
