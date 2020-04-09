@@ -7,8 +7,9 @@ import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.{ Matchers, WordSpec }
+import org.scalatest.{Matchers, WordSpec}
 import akka.actor.typed.scaladsl.adapter._
+import com.heavens_above.user.{UserRegistry, UserRoutes}
 
 //#set-up
 class UserRoutesSpec extends WordSpec with Matchers with ScalaFutures with ScalatestRouteTest {
@@ -30,7 +31,7 @@ class UserRoutesSpec extends WordSpec with Matchers with ScalaFutures with Scala
 
   // use the json formats to marshal and unmarshall objects in the test
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-  import JsonFormats._
+  import com.heavens_above.user.UserJson._
   //#set-up
 
   //#actual-test

@@ -1,4 +1,6 @@
-package com.heavens_above
+package com.heavens_above.user
+
+import com.heavens_above.Identifiable
 
 object UserSchema {
 

@@ -1,9 +1,9 @@
-package com.heavens_above
+package com.heavens_above.user
 
-import com.heavens_above.UserRegistry.ActionPerformed
+import com.heavens_above.user.UserRegistry.ActionPerformed
 import spray.json.{ DefaultJsonProtocol, RootJsonFormat }
 
-object JsonFormats {
+object UserJson {
 
   // Imports the default encoders for primitive types (Int, String, List, etc)
   import DefaultJsonProtocol._

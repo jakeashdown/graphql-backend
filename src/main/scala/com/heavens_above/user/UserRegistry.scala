@@ -1,10 +1,11 @@
-package com.heavens_above
+package com.heavens_above.user
 
 import scala.collection.immutable
 import scala.concurrent.Future
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ ActorRef, Behavior }
+import com.heavens_above.Identifiable
 
 final case class User(id: String, name: String) extends Identifiable
 final case class Users(users: immutable.Seq[User])

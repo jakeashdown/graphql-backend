@@ -3,7 +3,7 @@ lazy val akkaVersion    = "2.6.4"
 
 Compile/mainClass := Some("com.heavens_above.QuickstartApp")
 
-graphqlSchemaSnippet := "com.heavens_above.UserSchema.schema"
+graphqlSchemaSnippet := "com.heavens_above.user.UserSchema.schema"
 
 target in graphqlSchemaGen := target.value / "graphql-build-schema"
 

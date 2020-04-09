@@ -1,4 +1,4 @@
-package com.heavens_above
+package com.heavens_above.user
 
 import scala.concurrent.{ ExecutionContext, ExecutionContextExecutor, Future }
 
@@ -7,7 +7,8 @@ import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.server.Route
 import akka.stream.Materializer
 import akka.util.Timeout
-import com.heavens_above.UserRegistry.{ Command, GetUser, GetUserResponse, GetUsers }
+import UserRegistry.{ Command, GetUser, GetUserResponse, GetUsers }
+import com.heavens_above.CorsHandler
 import sangria.ast.Document
 import sangria.execution.{ ErrorWithResolver, Executor, QueryAnalysisError }
 import sangria.parser.DeliveryScheme.Try

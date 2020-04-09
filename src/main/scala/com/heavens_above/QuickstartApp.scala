@@ -6,6 +6,7 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.server.Route
+import com.heavens_above.user.{ UserRegistry, UserRoutes }
 
 object QuickstartApp {
 
