@@ -25,8 +25,8 @@ trait CorsHandler {
     }
 
   // Wraps the route to
-  //  - respond with CORS headers, and
-  //  - handle preflight requests
+  //  - handle preflight requests, and
+  //  - respond with CORS headers to requests handled by the wrapped route
   def handleCorsRequests(route: Route): Route =
     respondWithCorsHeaders {
       preflightComplete ~ route

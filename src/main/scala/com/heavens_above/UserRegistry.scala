@@ -9,11 +9,12 @@ import akka.actor.typed.{ ActorRef, Behavior }
 final case class User(id: String, name: String) extends Identifiable
 final case class Users(users: immutable.Seq[User])
 
-object UserRegistry {
+trait AsksUserRegistry {
+  def getUsers: Future[Seq[User]]
+  def getUser(id: String): Future[Option[User]]
+}
 
-  trait Ask {
-    def getUser(id: String): Future[Option[User]]
-  }
+object UserRegistry {
 
   sealed trait Command
   final case class GetUsers(replyTo: ActorRef[Users]) extends Command
@@ -25,7 +26,7 @@ object UserRegistry {
   final case class ActionPerformed(description: String)
 
   def apply(): Behavior[Command] =
-    registry(Set(User("trashe-racer", "jake"), User("emy", "emma")))
+    registry(Set(User("trashe-racer", "jake"), User("emy", "emma"))) // todo: remove after debugging
 
   private def registry(users: Set[User]): Behavior[Command] =
     Behaviors.receiveMessage {

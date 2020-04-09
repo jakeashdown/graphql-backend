@@ -18,7 +18,12 @@ object UserSchema {
   val QueryType =
     ObjectType(
       name = "Query",
-      fields = fields[UserRegistry.Ask, Unit](
+      fields = fields[Resolver, Unit](
+        Field(
+          name = "users",
+          fieldType = ListType(UserType),
+          description = Some("Returns all users."),
+          resolve = c => c.ctx.getUsers),
         Field(
           name = "user",
           fieldType = OptionType(UserType),

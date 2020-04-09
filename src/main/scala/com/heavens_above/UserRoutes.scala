@@ -7,32 +7,35 @@ import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.server.Route
 import akka.stream.Materializer
 import akka.util.Timeout
+import com.heavens_above.UserRegistry.{ Command, GetUser, GetUserResponse, GetUsers }
 import sangria.ast.Document
 import sangria.execution.{ ErrorWithResolver, Executor, QueryAnalysisError }
 import sangria.parser.DeliveryScheme.Try
 import sangria.parser.QueryParser
 import spray.json.{ JsObject, JsString, JsValue }
 
+class Resolver(registry: ActorRef[Command])(
+    implicit timeout: Timeout,
+    scheduler: Scheduler,
+    executionContext: ExecutionContext)
+    extends AsksUserRegistry {
+
+  import akka.actor.typed.scaladsl.AskPattern._
+
+  override def getUsers: Future[Seq[User]] =
+    registry.ask[Users](GetUsers).map(_.users)
+
+  override def getUser(id: String): Future[Option[User]] =
+    registry.ask[GetUserResponse](GetUser(id, _)).map(_.maybeUser)
+}
+
 object UserRoutes {
 
-  import UserRegistry._
   import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
   import akka.http.scaladsl.model.StatusCodes._
   import sangria.marshalling.sprayJson._
 
-  class RegistryAsker(registry: ActorRef[Command])(
-      implicit timeout: Timeout,
-      scheduler: Scheduler,
-      executionContext: ExecutionContext)
-      extends Ask {
-
-    import akka.actor.typed.scaladsl.AskPattern._
-
-    override def getUser(id: String): Future[Option[User]] =
-      registry.ask[GetUserResponse](GetUser(id, _)).map(_.maybeUser)
-  }
-
-  def executeQuery(query: Document, resolver: Ask, maybeOperation: Option[String], variables: JsObject)(
+  def executeQuery(query: Document, resolver: Resolver, maybeOperation: Option[String], variables: JsObject)(
       implicit executionContext: ExecutionContext): ToResponseMarshallable =
     Executor
       .execute(
@@ -58,14 +61,13 @@ class UserRoutes(userRegistry: ActorRef[UserRegistry.Command])(implicit val syst
 
   implicit val materializer: Materializer = Materializer(system)
 
-  // If asking the registry takes more time than this to complete, fails the request
   implicit val timeout: Timeout =
     Timeout.create(system.settings.config.getDuration("my-app.routes.ask-timeout"))
 
   implicit val executionContext: ExecutionContextExecutor = system.executionContext
   implicit val scheduler: Scheduler = system.scheduler
 
-  val registryAsker = new RegistryAsker(userRegistry)
+  val resolver = new Resolver(userRegistry)
 
   val route: Route =
     handleCorsRequests {
@@ -86,7 +88,7 @@ class UserRoutes(userRegistry: ActorRef[UserRegistry.Command])(implicit val syst
 
             QueryParser.parse(query) match {
               case util.Success(queryAst) =>
-                complete(executeQuery(queryAst, registryAsker, maybeOperation, variables))
+                complete(executeQuery(queryAst, resolver, maybeOperation, variables))
 
               case util.Failure(error) =>
                 complete(BadRequest, JsObject("error" -> JsString(error.getMessage)))

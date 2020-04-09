@@ -13,7 +13,7 @@ object QuickstartApp {
 
   private def startHttpServer(routes: Route, system: ActorSystem[_]): Unit = {
 
-    // Akka HTTP still needs a classic ActorSystem to start
+    // A classic actor system is still needed to start akka-http
     implicit val classicSystem: akka.actor.ActorSystem = system.toClassic
 
     import system.executionContext
@@ -32,14 +32,16 @@ object QuickstartApp {
   def main(args: Array[String]): Unit = {
 
     val rootBehavior = Behaviors.setup[Nothing] { context =>
-      val userRegistryActor = context.spawn(UserRegistry(), "UserRegistryActor")
-      context.watch(userRegistryActor)
+      implicit val system: ActorSystem[Nothing] = context.system
 
-      val routes = new UserRoutes(userRegistryActor)(context.system)
+      val userRegistryActor = context.spawn(behavior = UserRegistry(), name = "UserRegistryActor")
+      context.watch(other = userRegistryActor)
+
+      val routes = new UserRoutes(userRegistry = userRegistryActor)
       startHttpServer(routes.route, context.system)
 
       Behaviors.empty
     }
-    ActorSystem[Nothing](rootBehavior, "BackendAkkaHttpServer")
+    ActorSystem[Nothing](rootBehavior, "BackendGraphQlServer")
   }
 }
