@@ -6,7 +6,6 @@ object UserSchema {
   import sangria.schema._
 
   val Id: Argument[String] = Argument(name = "id", argumentType = StringType)
-  val ToEcho: Argument[String] = Argument("toEcho", StringType)
 
   val IdentifiableType = InterfaceType(
     "Identifiable",
