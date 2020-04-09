@@ -6,7 +6,7 @@ import scala.concurrent.Future
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ ActorRef, Behavior }
 
-final case class User(id: String, name: String)
+final case class User(id: String, name: String) extends Identifiable
 final case class Users(users: immutable.Seq[User])
 
 object UserRegistry {

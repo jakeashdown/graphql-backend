@@ -5,17 +5,16 @@ object UserSchema {
   import sangria.macros.derive._
   import sangria.schema._
 
-  // todo: implement type for this trait
-  trait Identifiable {
-    def id: String
-  }
-
   val Id: Argument[String] = Argument(name = "id", argumentType = StringType)
-
   val ToEcho: Argument[String] = Argument("toEcho", StringType)
 
+  val IdentifiableType = InterfaceType(
+    "Identifiable",
+    "Entity that can be identified",
+    fields[Unit, Identifiable](Field("id", StringType, resolve = _.value.id)))
+
   val UserType: ObjectType[Unit, User] =
-    deriveObjectType[Unit, User]()
+    deriveObjectType[Unit, User](Interfaces(IdentifiableType))
 
   val QueryType =
     ObjectType(
