@@ -13,3 +13,9 @@ Run `scalafmt` from the sbt shell to format the main sources of the project.
 ## Development server
 
 Run `~reStart` from the sbt shell for a dev server. Navigate to `http://127.0.0.1:8080/`. The server will automatically reload if you change any of the source files.
+
+## GraphQL schema generation
+
+Run `graphqlSchemaGen` from the sbt shell. This depends on the following `build.sbt` configuration:
+* `graphqlSchemaSnippet` is the Sangria schema definition
+* `target in graphqlSchemaGen` is the output directory
