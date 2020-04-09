@@ -38,7 +38,7 @@ object QuickstartApp {
       val userRegistryActor = context.spawn(behavior = UserRegistry(), name = "UserRegistryActor")
       context.watch(other = userRegistryActor)
 
-      val routes = new UserRoutes(userRegistry = userRegistryActor)
+      val routes = new UserRoutes(registry = userRegistryActor)
       startHttpServer(routes.route, context.system)
 
       Behaviors.empty
