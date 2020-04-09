@@ -1,13 +1,45 @@
 package com.heavens_above.user
 
+import java.time.format.DateTimeFormatter
+
+import scala.util.{ Failure, Success, Try }
+
 import com.heavens_above.Identifiable
 
 object UserSchema {
 
+  import java.time._
+
+  import sangria._
   import sangria.macros.derive._
+  import sangria.marshalling._
   import sangria.schema._
+  import sangria.validation._
 
   val Id: Argument[String] = Argument(name = "id", argumentType = StringType)
+
+  object LocalDateTimeScalar {
+    case object LocalDateTimeCoercionViolation extends ValueCoercionViolation("LocalDateTime value expected")
+
+    private def parseDate(s: String) = Try(LocalDateTime.parse(s)) match {
+      case Success(date) => Right(date)
+      case Failure(_)    => Left(LocalDateTimeCoercionViolation)
+    }
+
+    val LocalDateTimeType: ScalarType[LocalDateTime] = ScalarType[LocalDateTime](
+      "LocalDateTime",
+      coerceOutput = (localDateTime, caps) =>
+        if (caps.contains(DateSupport)) localDateTime.toLocalDate
+        else DateTimeFormatter.ISO_LOCAL_DATE_TIME.format(localDateTime),
+      coerceUserInput = {
+        case s: String => parseDate(s)
+        case _         => Left(LocalDateTimeCoercionViolation)
+      },
+      coerceInput = {
+        case ast.StringValue(s, _, _, _, _) => parseDate(s)
+        case _                              => Left(LocalDateTimeCoercionViolation)
+      })
+  }
 
   val IdentifiableType = InterfaceType(
     "Identifiable",
@@ -33,5 +65,8 @@ object UserSchema {
           arguments = Id :: Nil,
           resolve = c => c.ctx.getUser(c.arg(Id)))))
 
-  val schema = Schema(query = QueryType)
+  val MutationType =
+    ObjectType(name = "Mutation", fields = fields[Resolver, Unit]())
+
+  val schema = Schema(query = QueryType, mutation = Some(MutationType))
 }
