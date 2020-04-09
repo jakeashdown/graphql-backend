@@ -65,8 +65,8 @@ object UserSchema {
           arguments = Id :: Nil,
           resolve = c => c.ctx.getUser(c.arg(Id)))))
 
-  val MutationType =
-    ObjectType(name = "Mutation", fields = fields[Resolver, Unit]())
+  //val MutationType =
+  //  ObjectType(name = "Mutation", fields = fields[Resolver, Unit]())
 
-  val schema = Schema(query = QueryType, mutation = Some(MutationType))
+  val schema = Schema(query = QueryType)
 }

@@ -7,7 +7,11 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ ActorRef, Behavior }
 import com.heavens_above.Identifiable
 
-final case class User(id: String, name: String) extends Identifiable
+object User {
+  def apply(id: String, name: String): User = User(id, Some(name))
+}
+
+final case class User(id: String, name: Option[String] = None) extends Identifiable
 final case class Users(users: immutable.Seq[User])
 
 trait AsksUserRegistry {
@@ -16,6 +20,12 @@ trait AsksUserRegistry {
 }
 
 object UserRegistry {
+
+  // todo: remove
+  val defaults: Set[User] = Set(
+    User(id = "trashe-racer", name = "jake"),
+    User(id = "emma.s")
+  )
 
   sealed trait Command
   final case class GetUsers(replyTo: ActorRef[Users]) extends Command
@@ -26,8 +36,7 @@ object UserRegistry {
   final case class GetUserResponse(maybeUser: Option[User])
   final case class ActionPerformed(description: String)
 
-  def apply(): Behavior[Command] =
-    registry(Set(User("trashe-racer", "jake"), User("emy", "emma"))) // todo: remove after debugging
+  def apply(): Behavior[Command] = registry(defaults)
 
   private def registry(users: Set[User]): Behavior[Command] =
     Behaviors.receiveMessage {
