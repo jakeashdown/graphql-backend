@@ -99,6 +99,21 @@ object UserSchema {
                   c.ctx.tellRegistryCreateUser(user)
                   Some(user)
               })
+          }),
+        Field(
+          name = "deleteUser",
+          fieldType = OptionType(UserType),
+          arguments = Id :: Nil,
+          resolve = { c =>
+            import c.ctx.executionContext
+            val id = c.arg(Id)
+
+            c.ctx
+              .askRegistryForUser(id)
+              .map(_.fold[Option[User]](None) { user =>
+                c.ctx.tellRegistryDeleteUser(id)
+                Some(user)
+              })
           })))
 
   val schema =
