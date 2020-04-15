@@ -14,6 +14,25 @@ object User {
 final case class User(id: String, name: Option[String] = None, createdAt: LocalDateTime = LocalDateTime.now())
     extends Identifiable
 
+/**
+ * Manages a collection of users.
+ *
+ * At the moment, this actor does nothing to ensure the id of each user is unique.
+ *
+ * ==Behaviour==
+ *
+ * [[com.heavens_above.user.UserRegistry.GetUsers]]
+ * Replies with all users.
+ *
+ * [[com.heavens_above.user.UserRegistry.GetUser]]
+ * Replies with the first user who has the given id.
+ *
+ * [[com.heavens_above.user.UserRegistry.CreateUser]]
+ * Adds the given user to the collection.
+ *
+ * [[com.heavens_above.user.UserRegistry.DeleteUser]]
+ * Removes the user with the given id from the collection.
+ **/
 object UserRegistry {
 
   type Users = Seq[User]
@@ -37,12 +56,12 @@ object UserRegistry {
         replyTo ! users
         Behaviors.same
 
-      case CreateUser(user) =>
-        registry(users :+ user)
-
       case GetUser(id, replyTo) =>
         replyTo ! users.find(_.id == id)
         Behaviors.same
+
+      case CreateUser(user) =>
+        registry(users :+ user)
 
       case DeleteUser(id) =>
         registry(users.filterNot(_.id == id))
