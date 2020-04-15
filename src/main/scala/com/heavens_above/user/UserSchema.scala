@@ -1,8 +1,8 @@
 package com.heavens_above.user
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
-import akka.actor.typed.{ActorRef, Scheduler}
+import akka.actor.typed.{ ActorRef, Scheduler }
 import akka.util.Timeout
 import com.heavens_above.Identifiable
 import com.heavens_above.user.UserRegistry.Command
@@ -23,6 +23,9 @@ class UserResolver(registry: ActorRef[Command])(
 
   def tellRegistryCreateUser(user: User): Unit =
     registry.tell(CreateUser(user))
+
+  def tellRegistryDeleteUser(id: String): Unit =
+    registry.tell(DeleteUser(id))
 }
 
 object UserSchema {
@@ -32,7 +35,7 @@ object UserSchema {
   import sangria.schema._
 
   val Id = Argument(name = "id", argumentType = StringType)
-  val Name = Argument(name = "name", argumentType = OptionInputType(StringType))
+  val NameOption = Argument(name = "name", argumentType = OptionInputType(StringType))
 
   val IdentifiableType = InterfaceType(
     "Identifiable",
@@ -62,20 +65,40 @@ object UserSchema {
     ObjectType(
       name = "Mutation",
       fields = fields[UserResolver, Unit](
-        Field(name = "createUserIfUnique", fieldType = OptionType(UserType), arguments = Id :: Name :: Nil, resolve = {
-          c =>
+        Field(
+          name = "createUserIfUnique",
+          fieldType = OptionType(UserType),
+          arguments = Id :: NameOption :: Nil,
+          resolve = { c =>
             import c.ctx.executionContext
 
             val id = c.arg(Id)
             c.ctx.askRegistryForUsers.map { users =>
               if (!users.exists(_.id == id)) {
-                val maybeName = c.arg(Name)
+                val maybeName = c.arg(NameOption)
                 val user = User(id, maybeName)
                 c.ctx.tellRegistryCreateUser(user)
                 Some(user)
               } else None
             }
-        })))
+          }),
+        Field(
+          name = "updateUserName",
+          fieldType = OptionType(UserType),
+          arguments = Id :: NameOption :: Nil,
+          resolve = { c =>
+            import c.ctx.executionContext
+            val (id, maybeName) = (c.arg(Id), c.arg(NameOption))
+
+            c.ctx
+              .askRegistryForUser(id)
+              .map(_.fold[Option[User]](None) { _ =>
+                val user = User(id = id, name = maybeName)
+                c.ctx.tellRegistryDeleteUser(id)
+                c.ctx.tellRegistryCreateUser(user)
+                Some(user)
+              })
+          })))
 
   val schema =
     Schema(query = QueryType, additionalTypes = List(LocalDateTimeType), mutation = Some(MutationType))
