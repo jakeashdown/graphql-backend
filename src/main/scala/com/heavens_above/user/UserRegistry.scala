@@ -1,11 +1,12 @@
 package com.heavens_above.user
 
+import java.io.{File, PrintWriter}
 import java.time.LocalDateTime
 
 import scala.io.Source
 
-import akka.actor.typed.scaladsl.{ ActorContext, Behaviors }
-import akka.actor.typed.{ ActorRef, Behavior }
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import com.heavens_above.Identifiable
 
 object User {
@@ -17,7 +18,7 @@ final case class User(id: String, name: Option[String] = None, createdAt: LocalD
     extends Identifiable
 
 /**
- * Manages a collection of users.
+ * Manages a collection of users, persisted as a JSON file.
  *
  * At the moment, this actor does nothing to ensure the id of each user is unique.
  *
@@ -43,7 +44,7 @@ object UserRegistry {
 
   type Users = Seq[User]
 
-  val resourceFile = "/users.json"
+  val jsonFile = "registry/users.json"
 
   sealed trait Command
   final case class GetUsers(replyTo: ActorRef[Users]) extends Command
@@ -53,17 +54,19 @@ object UserRegistry {
 
   def apply(): Behavior[Command] = Behaviors.setup { context =>
     context.log.info("reading JSON from file")
-    val stream = getClass.getResourceAsStream(resourceFile)
-    val json = Source.fromInputStream(stream).mkString
+    val json = Source.fromFile(jsonFile).mkString
 
     context.log.info("parsing JSON")
     val users = json.parseJson.convertTo[Users]
     context.log.info(s"parsed ${users.length} users")
 
-    registry(context, users)
+    writeUsersThenReceiveMessage(context, users)
   }
 
-  private def registry(context: ActorContext[Command], users: Seq[User]): Behavior[Command] =
+  private def writeUsersThenReceiveMessage(context: ActorContext[Command], users: Seq[User]): Behavior[Command] = {
+    val writer = new PrintWriter(new File("registry/users.json"))
+    try writer.write(users.toJson.prettyPrint) finally writer.close()
+
     Behaviors.receiveMessage {
       case GetUsers(replyTo) =>
         replyTo ! users
@@ -74,9 +77,10 @@ object UserRegistry {
         Behaviors.same
 
       case CreateUser(user) =>
-        registry(context, users :+ user)
+        writeUsersThenReceiveMessage(context, users :+ user)
 
       case DeleteUser(id) =>
-        registry(context, users.filterNot(_.id == id))
+        writeUsersThenReceiveMessage(context, users.filterNot(_.id == id))
     }
+  }
 }
