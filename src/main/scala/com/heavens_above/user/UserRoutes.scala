@@ -27,7 +27,7 @@ class UserRoutes(registry: ActorRef[UserRegistry.Command])(implicit val system: 
   // todo: test error handling
   val route: Route =
     handleCorsRequests {
-      getFromResource("playground.html") ~
+      getFromResource("backend-gui.html") ~
       (post & path("graphql")) {
         entity(as[JsValue]) {
           case JsObject(fields) =>
