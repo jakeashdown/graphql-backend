@@ -14,7 +14,7 @@ lazy val root = (project in file("."))
       organization    := "com.heavens-above",
       scalaVersion    := "2.13.1"
     )),
-    name := "pollsterer-backend",
+    name := "graphql-backend",
     libraryDependencies ++= Seq(
       "com.typesafe.akka" %% "akka-http"                % akkaHttpVersion,
       "com.typesafe.akka" %% "akka-http-spray-json"     % akkaHttpVersion,
