@@ -92,11 +92,12 @@ object UserSchema {
 
             c.ctx
               .askRegistryForUser(id)
-              .map(_.fold[Option[User]](None) { _ =>
-                val user = User(id = id, name = maybeName)
-                c.ctx.tellRegistryDeleteUser(id)
-                c.ctx.tellRegistryCreateUser(user)
-                Some(user)
+              .map(_.fold[Option[User]](None) {
+                case User(_, _, createdAt) =>
+                  val user = User(id = id, maybeName, createdAt)
+                  c.ctx.tellRegistryDeleteUser(id)
+                  c.ctx.tellRegistryCreateUser(user)
+                  Some(user)
               })
           })))
 
