@@ -2,7 +2,9 @@ package com.heavens_above.user
 
 import java.time.LocalDateTime
 
-import akka.actor.typed.scaladsl.Behaviors
+import scala.io.Source
+
+import akka.actor.typed.scaladsl.{ ActorContext, Behaviors }
 import akka.actor.typed.{ ActorRef, Behavior }
 import com.heavens_above.Identifiable
 
@@ -35,12 +37,13 @@ final case class User(id: String, name: Option[String] = None, createdAt: LocalD
  **/
 object UserRegistry {
 
+  import com.heavens_above.user.UserJson._
+  import spray.json._
+  import DefaultJsonProtocol._
+
   type Users = Seq[User]
 
-  // todo: remove
-  val defaults: Seq[User] = Seq(
-    User(id = "trashe-racer", name = "jake", createdAt = LocalDateTime.parse("2020-01-01T12:00:00")),
-    User(id = "emma.s", createdAt = LocalDateTime.parse("2020-01-02T13:30:00")))
+  val resourceFile = "/users.json"
 
   sealed trait Command
   final case class GetUsers(replyTo: ActorRef[Users]) extends Command
@@ -48,9 +51,19 @@ object UserRegistry {
   final case class CreateUser(user: User) extends Command
   final case class DeleteUser(id: String) extends Command
 
-  def apply(): Behavior[Command] = registry(defaults)
+  def apply(): Behavior[Command] = Behaviors.setup { context =>
+    context.log.info("reading JSON from file")
+    val stream = getClass.getResourceAsStream(resourceFile)
+    val json = Source.fromInputStream(stream).mkString
 
-  private def registry(users: Seq[User]): Behavior[Command] =
+    context.log.info("parsing JSON")
+    val users = json.parseJson.convertTo[Users]
+    context.log.info(s"parsed ${users.length} users")
+
+    registry(context, users)
+  }
+
+  private def registry(context: ActorContext[Command], users: Seq[User]): Behavior[Command] =
     Behaviors.receiveMessage {
       case GetUsers(replyTo) =>
         replyTo ! users
@@ -61,9 +74,9 @@ object UserRegistry {
         Behaviors.same
 
       case CreateUser(user) =>
-        registry(users :+ user)
+        registry(context, users :+ user)
 
       case DeleteUser(id) =>
-        registry(users.filterNot(_.id == id))
+        registry(context, users.filterNot(_.id == id))
     }
 }
